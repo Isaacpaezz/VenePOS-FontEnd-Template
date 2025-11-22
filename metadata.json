@@ -1,0 +1,5 @@
+{
+  "name": "VenePOS",
+  "description": "Sistema integral para la recuperación y gestión de puntos de venta Credicard.",
+  "requestFramePermissions": []
+}
