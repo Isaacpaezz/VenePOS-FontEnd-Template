@@ -1,54 +1,57 @@
-# Guía de Migración a Producción: VenePOS
+# Guía de Migración a Producción: VenePOS (Next.js 15)
 
-**Versión del Documento:** 1.0.0
-**Objetivo:** Transformar el prototipo "Client-Side" actual en una aplicación **Next.js 15 (App Router)** completa, conectada a base de datos real y lista para despliegue.
+Esta guía detalla los pasos exactos para transformar el prototipo actual (React SPA simulada) en una aplicación **Next.js 15** de producción, manteniendo el 100% del diseño visual y la funcionalidad operativa.
+
+El objetivo es obtener un **Frontend Template Funcional** donde la navegación, los estados de carga y la interacción con datos simulados funcionen nativamente bajo la arquitectura de Next.js.
 
 ---
 
-## 1. Stack Tecnológico de Producción
-
-Debes inicializar el proyecto con estas tecnologías exactas para mantener la fidelidad del diseño y la funcionalidad requerida.
+## 1. Stack Tecnológico Objetivo
 
 *   **Framework:** Next.js 15 (App Router).
-*   **Lenguaje:** TypeScript (Estricto).
-*   **Estilos:** Tailwind CSS v4 (vía PostCSS, no CDN).
-*   **Base de Datos:** Supabase (PostgreSQL).
-*   **Autenticación:** Better-Auth (Conectado a Supabase Postgres).
-*   **ORM:** Drizzle ORM (Recomendado para SQL type-safety) o Prisma.
-*   **Notificaciones:** Sonner (Reemplazando el toast mockeado).
-*   **Iconos:** Lucide React.
+*   **Lenguaje:** TypeScript.
+*   **Estilos:** Tailwind CSS v4 (PostCSS).
+*   **Componentes:** Shadcn/ui (Estructura base) + Lucide React.
+*   **Notificaciones:** `sonner` (Reemplazando el Toast custom).
 *   **Gráficos:** Recharts.
+*   **Manejo de Formularios:** React Hook Form (Recomendado para el Wizard).
+*   **Estado de URL:** `nuqs` (Type-safe search params) para filtros y modales profundos.
 
 ---
 
-## 2. Fase 1: Inicialización del Proyecto
+## 2. Inicialización del Proyecto
 
-### 2.1. Scaffolding
-Ejecuta en tu terminal:
+Ejecuta el siguiente comando en tu terminal:
+
 ```bash
-npx create-next-app@latest venepos
-# Selecciona:
-# - TypeScript: Yes
-# - ESLint: Yes
-# - Tailwind CSS: Yes
-# - `src/` directory: No (Para mantener la estructura actual `app/`)
-# - App Router: Yes
-# - Import alias: @/*
+npx create-next-app@latest venepos-frontend
 ```
 
-### 2.2. Instalación de Dependencias
+**Configuración del Wizard:**
+*   Would you like to use TypeScript? **Yes**
+*   Would you like to use ESLint? **Yes**
+*   Would you like to use Tailwind CSS? **Yes**
+*   Would you like to use `src/` directory? **No** (Para mantener la estructura plana actual, o Yes si prefieres estándar).
+*   Would you like to use App Router? **Yes**
+*   Would you like to customize the default import alias (@/*)? **Yes**
+
+### Instalación de Dependencias Adicionales
+
 ```bash
-pnpm add better-auth sonner lucide-react recharts clsx tailwind-merge @tanstack/react-table class-variance-authority
-pnpm add drizzle-orm postgres # O el cliente de Supabase directo
-pnpm add -D drizzle-kit
+npm install lucide-react recharts sonner clsx tailwind-merge class-variance-authority
 ```
 
-### 2.3. Migración de Estilos (Tailwind)
-El prototipo usa variables CSS en `index.html`. Debes moverlas a `app/globals.css` en Next.js.
+---
 
-**Archivo `app/globals.css`:**
-Copiar todo el contenido dentro de la etiqueta `<style>` del `index.html` actual, pero adaptando la sintaxis a CSS estándar de Tailwind:
+## 3. Migración de Estilos y Activos
 
+### 3.1. Configuración de Tailwind
+El prototipo usa CDN. En producción, usa el sistema de compilación.
+
+1.  Copia las fuentes de `index.html` a `app/layout.tsx` (usando `next/font/google`).
+2.  Mueve las variables CSS de `index.html` (`:root`, `.dark`) a `app/globals.css`.
+
+**app/globals.css:**
 ```css
 @tailwind base;
 @tailwind components;
@@ -58,9 +61,10 @@ Copiar todo el contenido dentro de la etiqueta `<style>` del `index.html` actual
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-    /* ... Copiar todas las variables del index.html aquí ... */
+    /* ... Copiar todas las variables del index.html actual ... */
     --radius: 0.75rem;
   }
+  
   .dark {
     /* ... Copiar variables dark ... */
   }
@@ -72,152 +76,172 @@ Copiar todo el contenido dentro de la etiqueta `<style>` del `index.html` actual
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+```
+
+### 3.2. Utilidades
+Copia el archivo `lib/utils.ts` exacto a tu nuevo proyecto.
+
+---
+
+## 4. Arquitectura de Componentes (Refactorización)
+
+El archivo `components/UI.tsx` actual contiene toda la librería. Para producción, debemos **atomizar**.
+
+Crea la carpeta `components/ui/` y separa cada componente:
+*   `components/ui/button.tsx`
+*   `components/ui/card.tsx`
+*   `components/ui/input.tsx`
+*   `components/ui/sheet.tsx` (Drawer)
+*   `components/ui/dialog.tsx` (Modal)
+*   etc.
+
+**Nota sobre Iconos:**
+Asegúrate de instalar `lucide-react` y reemplazar las importaciones.
+
+**Nota sobre Notificaciones:**
+En lugar de usar el `ToastProvider` custom de `UI.tsx`, implementa `sonner`.
+1.  En `app/layout.tsx`, agrega `<Toaster />` de `sonner`.
+2.  Reemplaza `useToast()` en las páginas por `toast()` de `sonner`.
+
+---
+
+## 5. Migración de Datos (Mock Data)
+
+Mueve el archivo `mockData.ts` a `lib/data.ts`.
+
+**Estrategia de "Backend Simulado":**
+Para que el frontend se sienta real, crea funciones asíncronas que simulen latencia de red.
+
+```typescript
+// lib/api.ts
+import { clientsData } from './data';
+import { Client } from '@/types';
+
+export async function getClients(): Promise<Client[]> {
+  // Simula 600ms de latencia de red
+  await new Promise(resolve => setTimeout(resolve, 600));
+  return clientsData;
+}
+```
+Usa estas funciones en tus Server Components (`page.tsx`) o con `useEffect` en Client Components.
+
+---
+
+## 6. Estructura de Rutas (App Router)
+
+Aquí es donde ocurre la magia para eliminar el `App.tsx` gigante. Next.js usa el sistema de archivos.
+
+### 6.1. Layouts (Grupos de Rutas)
+
+Crea dos grupos de rutas para separar layouts:
+
+1.  **`(auth)`**: Para Login/Register (Sin Sidebar).
+2.  **`(dashboard)`**: Para la app principal (Con Sidebar).
+
+Estructura de carpetas:
+```
+app/
+├── (auth)/
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   └── onboarding/page.tsx
+├── (dashboard)/
+│   ├── layout.tsx          <-- Aquí va el AppLayout.tsx adaptado
+│   ├── page.tsx            <-- Dashboard Home
+│   ├── clients/page.tsx
+│   ├── campaigns/page.tsx
+│   ├── settings/page.tsx
+│   └── ...
+└── layout.tsx              <-- Root Layout (HTML, Body, Fonts, Toaster)
+```
+
+### 6.2. Adaptando AppLayout a Next.js
+
+El archivo `app/components/AppLayout.tsx` actual usa `onNavigate` y `currentRoute`. Esto debe cambiar a navegación nativa.
+
+**Transformación:**
+1.  Mueve `app/components/AppLayout.tsx` a `app/(dashboard)/layout.tsx`.
+2.  Reemplaza `currentRoute` con el hook `usePathname()` de `next/navigation`.
+3.  Reemplaza `onNavigate('clients')` con `<Link href="/clients">` de `next/link`.
+
+```tsx
+// app/(dashboard)/layout.tsx
+'use client';
+
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Lógica para saber si está activo
+  const isActive = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
+
+  // ... El resto del diseño del Sidebar se mantiene igual ...
+  // ... Reemplazar <div> onClick por <Link href> ...
+}
+```
+
+### 6.3. Deep Linking (Wizard de Campañas)
+
+En el prototipo, usamos `campaigns-new` como una ruta virtual. En Next.js, usaremos **Search Params**.
+
+1.  El botón "Nueva Campaña" en el Dashboard debe ser un Link:
+    `<Link href="/campaigns?new=true">Nueva Campaña</Link>`
+2.  En `app/campaigns/page.tsx`, lee el parámetro:
+
+```tsx
+// app/campaigns/page.tsx
+'use client';
+import { useSearchParams } from 'next/navigation';
+
+export default function CampaignsPage() {
+  const searchParams = useSearchParams();
+  const initialWizardOpen = searchParams.get('new') === 'true';
+  
+  const [isWizardOpen, setIsWizardOpen] = useState(initialWizardOpen);
+  // ... resto del código
 }
 ```
 
 ---
 
-## 3. Fase 2: Migración del Frontend (UI)
+## 7. Migración de Páginas (Paso a Paso)
 
-El objetivo es mantener el 100% del diseño.
+Copia el contenido de cada página del prototipo a su archivo correspondiente en Next.js, ajustando las importaciones.
 
-### 3.1. Atomización de Componentes
-Actualmente, `components/UI.tsx` es un archivo gigante. En producción, sepáralo:
+### Dashboard (`app/page.tsx`)
+*   Convierte el componente en `async` si quieres hacer data fetching del lado del servidor (Recomendado).
+*   O mantenlo `'use client'` y usa el `useEffect` con `setTimeout` que ya tienes para simular la carga inicial con Skeletons.
 
-*   Crear `components/ui/button.tsx` -> Pegar código de `Button`.
-*   Crear `components/ui/card.tsx` -> Pegar código de `Card`, `CardHeader`, etc.
-*   Crear `components/ui/input.tsx` -> Pegar código de `Input`.
-*   Crear `components/ui/sheet.tsx` -> Pegar código de `Sheet`.
-*   Crear `components/ui/dialog.tsx` -> Pegar código de `Dialog`.
-*   Crear `lib/utils.ts` -> Mantener la función `cn`.
+### Clientes (`app/clients/page.tsx`)
+*   **Crucial:** La funcionalidad de exportación CSV funciona nativamente en el navegador, así que el código se mantiene igual (Client Component).
+*   El **Modo Edición** y el **Drawer 360** funcionan perfectamente con `useState` local.
 
-### 3.2. Layouts
-Mueve `app/components/AppLayout.tsx` a `components/layout/SidebarLayout.tsx`.
-*   **Importante:** En Next.js, el layout principal (`app/layout.tsx`) debe contener el `<body>` y la fuente `Inter`.
-*   El `SidebarLayout` debe envolver solo las páginas del dashboard, no el login.
-
-**Estructura de Carpetas Resultante:**
-```
-app/
-├── (auth)/                 # Grupo de rutas (sin sidebar)
-│   ├── login/page.tsx
-│   ├── register/page.tsx
-│   └── onboarding/page.tsx
-├── (dashboard)/            # Grupo de rutas (con SidebarLayout)
-│   ├── layout.tsx          # Aquí importas SidebarLayout
-│   ├── page.tsx            # Dashboard Home
-│   ├── clients/page.tsx
-│   ├── campaigns/page.tsx
-│   └── settings/page.tsx
-├── layout.tsx              # Root Layout (Providers: Sonner, Auth)
-└── globals.css
-```
+### Settings & Integrations
+*   Mantén los formularios y estados locales.
+*   Para la integración con Chatwoot real en el futuro, estos formularios enviarán POST requests a API Routes de Next.js (`app/api/settings/route.ts`).
 
 ---
 
-## 4. Fase 3: Base de Datos (Supabase Mapping)
+## 8. Integración Chatwoot (Embed)
 
-Esta es la parte crítica para la consistencia de datos. Debes crear tablas en Supabase que coincidan **exactamente** con las interfaces de `types.ts`.
-
-### 4.1. Tabla `organizations` (Tenant)
-*   `id`: uuid (PK)
-*   `name`: text
-*   `rif`: text
-*   `chatwoot_config`: jsonb (URL, token, account_id)
-
-### 4.2. Tabla `clients` (Espejo del Excel)
-Esta tabla es vital para la importación/exportación.
-```sql
-create table clients (
-  id uuid primary key default gen_random_uuid(),
-  organization_id uuid references organizations(id),
-  afipos bigint unique,        -- Columna A
-  numpos int,                  -- Columna B (Calculado o importado)
-  codigo_afiliado text,        -- Columna C
-  nombre_afiliado text,        -- Columna D
-  rif_afiliado text,           -- Columna E
-  telefono_afiliado text,      -- Columna F
-  persona_contacto text,       -- Columna G
-  direccion_afiliado text,     -- Columna H
-  nombre_banco text,           -- Columna I
-  region text,                 -- Columna J
-  estado text,                 -- Columna K
-  ciudad text,                 -- Columna L
-  sector text,                 -- Columna M
-  categoria_comercio text,     -- Columna N
-  rango_tx text,               -- Columna T (CRÍTICO: Valores "SIN TX...", etc)
-  gestion_estado text,         -- Columna W (CRÍTICO: "POR GESTIONAR", etc)
-  email text,                  -- Campo CRM adicional
-  created_at timestamptz default now()
-);
-```
-
-### 4.3. Tabla `terminals`
-*   `serial`: text (PK o Unique)
-*   `client_id`: uuid references clients(id)
-*   `modelo`: text
-*   `marca`: text
-*   `operadora`: text
-*   `estado_pos`: text
+La página `chatwoot-sidebar` debe vivir fuera del layout del dashboard.
+*   Crea `app/integrations/chatwoot/page.tsx`.
+*   Asegúrate de que esta ruta NO esté dentro del grupo `(dashboard)`. Puedes ponerla en la raíz o en un grupo `(standalone)`.
 
 ---
 
-## 5. Fase 4: Autenticación (Better-Auth)
+## 9. Checklist Final de Entrega
 
-Implementarás Better-Auth conectado a Supabase.
+1.  [ ] **Routing:** Navegación fluida entre Sidebar y páginas usando `Link`.
+2.  [ ] **Assets:** Fuentes Inter cargando correctamente. Iconos Lucide visibles.
+3.  [ ] **Estilos:** Tailwind procesando clases correctamente (incluyendo `animate-in`).
+4.  [ ] **Feedback:** Las notificaciones usan `sonner` y se ven apiladas y bonitas.
+5.  [ ] **Mock Data:** Todas las tablas muestran los datos de `lib/data.ts`.
+6.  [ ] **Wizard:** Entrar a `/campaigns?new=true` abre el modal automáticamente.
+7.  [ ] **Export:** El botón de Excel descarga el CSV correctamente.
 
-1.  **Setup:** Configura el cliente en `lib/auth.ts`.
-2.  **Schema:** Better-Auth necesita sus propias tablas (`user`, `session`, `account`, `verification`). Deja que Better-Auth genere la migración en Supabase.
-3.  **Login Page (`app/auth/login/page.tsx`):**
-    *   Reemplaza el `setTimeout` simulado.
-    *   Usa `authClient.signIn.email({ email, password })`.
-    *   Maneja errores reales (credenciales inválidas) usando **Sonner**.
-
----
-
-## 6. Fase 5: Integración de Funcionalidades
-
-### 6.1. Notificaciones (Sonner)
-En el prototipo usamos un mock. En producción:
-1.  En `app/layout.tsx`, agrega `<Toaster position="top-right" />` (importado de `sonner`).
-2.  En toda la app, reemplaza `const { toast } = useToast()` por:
-    ```typescript
-    import { toast } from 'sonner';
-    // Uso:
-    toast.success('Cliente actualizado');
-    toast.error('Error de conexión');
-    ```
-
-### 6.2. Importación Masiva (Excel/CSV)
-En `app/dashboard/import/page.tsx`:
-1.  Usa una librería como `papaparse` o `xlsx` en el cliente para leer el archivo.
-2.  **Validación:** Asegura que las columnas del CSV coincidan con las del modelo de base de datos.
-3.  **Server Action:** Envía el array de datos a una Server Action `importClients(data)`.
-4.  **Batch Insert:** Usa `db.insert(clients).values(data)` para insertar masivamente en Supabase.
-
-### 6.3. Edición en Tiempo Real (Perfil 360)
-En `app/dashboard/clients/page.tsx`:
-1.  Convierte el componente Drawer en un **Client Component**.
-2.  Crea una **Server Action** `updateClient(id, data)`.
-3.  Al dar click en "Guardar Cambios":
-    *   Llama a `await updateClient(...)`.
-    *   Si es exitoso -> `toast.success(...)`.
-    *   Usa `router.refresh()` para actualizar la tabla de fondo sin recargar la página.
-
-### 6.4. Campañas y Deep Linking
-*   Mantén la lógica de `campaigns-new`. En Next.js real, esto puede manejarse vía **Query Params**:
-    *   Ruta: `/dashboard/campaigns?action=new`
-    *   En `CampaignsPage`, lee el searchParam `action`. Si es `new`, abre el modal `useState(true)`.
-
----
-
-## 7. Lista de Verificación Final (Pre-Deploy)
-
-*   [ ] **Environment Variables:** Configura `.env.local` con `DATABASE_URL`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`.
-*   [ ] **Build:** Ejecuta `pnpm build` y asegura que no haya errores de tipos (TypeScript estricto).
-*   [ ] **Images:** Reemplaza las imágenes de `ui-avatars.com` por almacenamiento real (Supabase Storage) para los logos de empresas y avatares de usuarios.
-*   [ ] **Seguridad:** Configura **Row Level Security (RLS)** en Supabase para que un Tenant no pueda ver los clientes de otro Tenant (usando `organization_id`).
-
-Esta guía garantiza que VenePOS pase de ser un prototipo visualmente impactante a un producto SaaS operativo de clase mundial.
+Esta estructura garantiza que tienes un **Frontend Profesional** listo para conectar con Supabase y Backend real, sin haber sacrificado ni un ápice de la calidad visual lograda en el prototipo.

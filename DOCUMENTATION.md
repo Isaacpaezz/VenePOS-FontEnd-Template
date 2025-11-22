@@ -1,7 +1,7 @@
 # VenePOS - Documentación Técnica
 
-**Versión:** 2.0.1
-**Última Actualización:** 21 Noviembre 2025
+**Versión:** 2.0.0  
+**Última Actualización:** 21 Noviembre 2025  
 **Estatus:** Producción (MVP Operativo)
 
 ---
@@ -12,10 +12,7 @@
 
 La arquitectura está construida bajo el principio de **"Native Web App"**, priorizando transiciones instantáneas, estados de carga no bloqueantes (Skeletons) y una estética financiera de alta densidad de información.
 
-### Guía de Migración a Producción
-> **IMPORTANTE:** Para desarrolladores encargados de llevar este prototipo a un entorno Next.js real, consultar el archivo [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) para instrucciones paso a paso sobre Supabase, Better-Auth y estructura de carpetas.
-
-### Stack Tecnológico (Prototipo Actual)
+### Stack Tecnológico
 
 | Capa | Tecnología | Decisión Técnica |
 | :--- | :--- | :--- |
@@ -31,6 +28,9 @@ La arquitectura está construida bajo el principio de **"Native Web App"**, prio
 ## 2. Arquitectura del Proyecto
 
 El sistema simula la estructura de **Next.js 15 App Router** para facilitar una futura migración a SSR si fuera necesario.
+
+> **🚀 MIGRACIÓN A PRODUCCIÓN:**  
+> Para llevar este sistema a un entorno Next.js real, consulta la guía detallada en [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md).
 
 ```
 /
